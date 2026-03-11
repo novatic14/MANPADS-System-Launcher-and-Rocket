@@ -29,4 +29,3 @@ This repository contains the core engineering components of the project:
 - mechanical CAD files for the rocket and launcher  
 - firmware source code for the rocket flight controller and launcher system  
 - OpenRocket simulation files used for aerodynamic stability analysis  
-- supporting project documentation  
