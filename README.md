@@ -2,7 +2,7 @@
 
 ## Demonstration
 
-[![30 Second Overview](https://img.youtube.com/vi/zFn__6_LdTc/maxresdefault.jpg)](https://www.youtube.com/shorts/zFn__6_LdTc)
+[![30 Second Overview](https://www.youtube.com/shorts/zFn__6_LdTc)
 
 **Full System Overview (5 minutes)**  
 https://www.youtube.com/watch?v=DDO2EvXyncE&t=54s
