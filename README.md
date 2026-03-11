@@ -1,14 +1,14 @@
 # MANPADS Rocket & Launcher Prototype
 
-## Demonstrations
+## Demonstration
 
 [![30 Second Overview](https://img.youtube.com/vi/zFn__6_LdTc/maxresdefault.jpg)](https://www.youtube.com/shorts/zFn__6_LdTc)
 
-[![Full System Overview (5 min)](https://img.youtube.com/vi/DDO2EvXyncE/maxresdefault.jpg)](https://www.youtube.com/watch?v=DDO2EvXyncE&t=54s)
+**Full System Overview (5 minutes)**  
+https://www.youtube.com/watch?v=DDO2EvXyncE&t=54s
 
-## Full Development Media and Documentation
-[https://drive.google.com/drive/folders/17zpks6_R59H0iXJaGkTrtp1SzIFFAQtY?usp=sharing](https://drive.google.com/drive/folders/17zpks6_R59H0iXJaGkTrtp1SzIFFAQtY?usp=drive_link
-)
+**Full Development Media and Documentation**  
+https://drive.google.com/drive/folders/17zpks6_R59H0iXJaGkTrtp1SzIFFAQtY?usp=sharing
 
 The Google Drive archive contains additional development media and documentation including:
 
