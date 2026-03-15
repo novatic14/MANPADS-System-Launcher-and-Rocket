@@ -47,6 +47,7 @@ class TelemetryApp:
 
         self.rocket_ip = None
         self.running = True
+        self.data_lock = threading.Lock()
 
         self.build_gui()
         
@@ -206,11 +207,15 @@ class TelemetryApp:
 
     def _send_udp_command(self, cmd):
         target_ip = self.rocket_ip if self.rocket_ip else LAUNCHER_GATEWAY
+        sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(cmd.encode('utf-8'), (target_ip, UDP_PORT))
-        except Exception as e:
+        except OSError as e:
             messagebox.showerror("Error", f"Failed to send '{cmd}':\n{e}")
+        finally:
+            if sock:
+                sock.close()
 
     def send_launch_command(self):
         if messagebox.askyesno("CONFIRM LAUNCH", "WARNING: This bypasses the physical launch button.\nEnsure Launcher is Armed and READY.\n\nProceed to IGNITE?"):
@@ -228,10 +233,15 @@ class TelemetryApp:
 
     def connection_watchdog(self):
         while self.running:
+            sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.sendto(b"HELLO", (LAUNCHER_GATEWAY, UDP_PORT))
-            except: pass
+            except OSError:
+                pass
+            finally:
+                if sock:
+                    sock.close()
             time.sleep(2)
 
     def udp_listener(self):
@@ -243,31 +253,35 @@ class TelemetryApp:
                 message = data.decode('utf-8').strip()
                 if self.rocket_ip != addr[0]:
                     self.rocket_ip = addr[0]
-                    self.root.after(0, lambda: self.status_label.config(text=f"Connected: {self.rocket_ip}", foreground="green"))
+                    # Use default argument to capture the current value of self.rocket_ip
+                    self.root.after(0, lambda ip=self.rocket_ip: self.status_label.config(text=f"Connected: {ip}", foreground="green"))
                 self.parse_data(message)
-            except: pass
+            except OSError:
+                pass
 
     def parse_data(self, message):
         try:
             if message.startswith("STATUS:"):
                 parts = message.split(":", 1)[1].strip().split(",")
-                self.current_values["State"] = parts[0]
-                if len(parts) >= 4:
-                    self.current_values["ActiveKp"] = float(parts[1])
-                    self.current_values["ActiveKd"] = float(parts[2])
-                    self.current_values["Skew"] = float(parts[3])
+                with self.data_lock:
+                    self.current_values["State"] = parts[0]
+                    if len(parts) >= 4:
+                        self.current_values["ActiveKp"] = float(parts[1])
+                        self.current_values["ActiveKd"] = float(parts[2])
+                        self.current_values["Skew"] = float(parts[3])
 
             elif message.startswith("ENV,"):
                 parts = message.split(',')
-                if len(parts) >= 4:
-                    self.current_values["Lat"] = float(parts[1])
-                    self.current_values["Lon"] = float(parts[2])
-                    self.current_values["Alt"] = float(parts[3])
-                if len(parts) >= 5: # Safely get the new GPS state variable
-                    self.current_values["GPS_State"] = int(parts[4])
+                with self.data_lock:
+                    if len(parts) >= 4:
+                        self.current_values["Lat"] = float(parts[1])
+                        self.current_values["Lon"] = float(parts[2])
+                        self.current_values["Alt"] = float(parts[3])
+                    if len(parts) >= 5: # Safely get the new GPS state variable
+                        self.current_values["GPS_State"] = int(parts[4])
 
             elif message.startswith("T,") or message.startswith("[FUSION]"):
-                if message.startswith("[FUSION]"): return 
+                if message.startswith("[FUSION]"): return
                 parts = message.split(',')
                 if len(parts) >= 5:
                     t, r, rt, o = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
@@ -275,14 +289,16 @@ class TelemetryApp:
                     self.roll_data.append(r)
                     self.rate_data.append(rt)
                     self.output_data.append(o)
-                    self.current_values.update({"Time": t, "Roll": r, "Rate": rt, "Output": o})
-                    
-                    state = self.current_values.get("State", "DISCONNECTED")
-                    if state != self.last_state:
-                        if self.last_state != "DISCONNECTED" and t > 0:
-                            self.mission_events.append({"time": t, "state": state})
-                        self.last_state = state
-        except: pass
+                    with self.data_lock:
+                        self.current_values.update({"Time": t, "Roll": r, "Rate": rt, "Output": o})
+                        state = self.current_values.get("State", "DISCONNECTED")
+                        if state != self.last_state:
+                            if self.last_state != "DISCONNECTED" and t > 0:
+                                self.mission_events.append({"time": t, "state": state})
+                            self.last_state = state
+        except (ValueError, IndexError) as e:
+            # Log parsing errors but don't crash the listener thread
+            print(f"Parse error: {e} for message: {message[:50]}")
 
     def gui_update_loop(self):
         if self.running:
@@ -291,7 +307,8 @@ class TelemetryApp:
 
     def update_stats(self):
         if not hasattr(self, 'lbl_time') or not self.lbl_time.winfo_exists(): return
-        vals = self.current_values
+        with self.data_lock:
+            vals = self.current_values.copy()
         self.lbl_time.config(text=f"{int(vals['Time'])}")
         self.lbl_roll.config(text=f"{vals['Roll']:.2f}")
         self.lbl_rate.config(text=f"{vals['Rate']:.2f}")

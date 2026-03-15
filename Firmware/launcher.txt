@@ -184,8 +184,17 @@ void processSerial2() {
                 int c[10]; // 10 commas for the new skew array
                 c[0] = msg.indexOf(',');
                 for(int i=1; i<10; i++) c[i] = msg.indexOf(',', c[i-1] + 1);
-                
-                if (c[9] > 0) { // Check that all fields arrived
+
+                // Check that all 10 comma positions were found (c[i] will be -1 if not found)
+                bool allCommasFound = true;
+                for(int i=0; i<10; i++) {
+                    if (c[i] < 0) {
+                        allCommasFound = false;
+                        break;
+                    }
+                }
+
+                if (allCommasFound) { // Check that all fields arrived
                     mpu_ax = msg.substring(c[0]+1, c[1]).toFloat();
                     mpu_ay = msg.substring(c[1]+1, c[2]).toFloat();
                     mpu_az = msg.substring(c[2]+1, c[3]).toFloat();
@@ -209,10 +218,15 @@ void processSerial2() {
 void processUDP() {
     int packetSize = udp.parsePacket();
     if (packetSize) {
-        char buffer[packetSize + 1];
+        // Fixed-size buffer to prevent stack overflow from VLA
+        // VLA (char buffer[packetSize + 1]) is not standard C++ and unsafe
+        char buffer[512];
+        if (packetSize > (int)sizeof(buffer) - 1) {
+            packetSize = sizeof(buffer) - 1;
+        }
         udp.read(buffer, packetSize);
         buffer[packetSize] = '\0';
-        
+
         String msg = String(buffer);
         msg.trim();
         
