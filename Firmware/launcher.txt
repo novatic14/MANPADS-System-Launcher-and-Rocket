@@ -12,10 +12,8 @@
 #include <QMC5883LCompass.h>
 #include <TinyGPS++.h>
 #include <Adafruit_BMP085.h>
+#include "config.h"
 
-const char* ssid = "ROCKET_LAUNCHER";
-const char* password = "launch_secure"; 
-const int udpPort = 4444;
 WiFiUDP udp;
 IPAddress dashboardIP;
 bool dashboardConnected = false;
@@ -91,11 +89,11 @@ void setup() {
     SerialGPS.begin(9600, SERIAL_8N1, GPS_RX_PIN, -1);
 
     Serial.println("Starting WiFi Access Point...");
-    WiFi.softAP(ssid, password);
+    WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(IP);
-    udp.begin(udpPort);
+    udp.begin(UDP_PORT);
 
     Wire.begin(I2C_SDA, I2C_SCL);
     compass.init();
@@ -154,7 +152,7 @@ void setup() {
 
 void sendToDashboard(String msg) {
     if (dashboardConnected) {
-        udp.beginPacket(dashboardIP, udpPort);
+        udp.beginPacket(dashboardIP, UDP_PORT);
         udp.println(msg);
         udp.endPacket();
     }
