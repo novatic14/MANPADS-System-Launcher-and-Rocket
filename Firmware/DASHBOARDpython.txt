@@ -8,15 +8,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from collections import deque
 import time
 import numpy as np
+from config import UDP_IP, UDP_PORT, LAUNCHER_GATEWAY
 
 # --- Configuration ---
-UDP_IP = "0.0.0.0"  
-UDP_PORT = 4444
 BUFFER_SIZE = 1024
 VIEW_POINTS = 100   
-RATE_SCALE = 0.25   
-
-LAUNCHER_GATEWAY = "192.168.4.1" 
+RATE_SCALE = 0.25
 
 class TelemetryApp:
     def __init__(self, root):
