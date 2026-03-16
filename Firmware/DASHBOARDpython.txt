@@ -10,7 +10,7 @@ import time
 import numpy as np
 
 # --- Configuration ---
-UDP_IP = "0.0.0.0"  
+UDP_IP = "127.0.0.1"
 UDP_PORT = 4444
 BUFFER_SIZE = 1024
 VIEW_POINTS = 100   
