@@ -345,7 +345,10 @@ class TelemetryApp:
         return self.line_roll, self.line_rate
 
     def reset_dashboard(self):
-        self.time_data.clear(); self.roll_data.clear(); self.rate_data.clear(); self.output_data.clear()
+        self.time_data.clear()
+        self.roll_data.clear()
+        self.rate_data.clear()
+        self.output_data.clear()
         self.mission_events.clear()
         self.current_values = {"Time": 0, "Roll": 0.0, "Rate": 0.0, "Output": 0.0, "State": "DISCONNECTED", "ActiveKp": 0.0, "ActiveKd": 0.0, "Skew": 0.0, "Lat": 0.0, "Lon": 0.0, "Alt": 0.0, "GPS_State": 0}
         self.last_state = "DISCONNECTED"
