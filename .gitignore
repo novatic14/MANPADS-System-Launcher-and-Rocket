@@ -1,0 +1,7 @@
+# Compiled binaries
+*.bin
+*.elf
+*.hex
+
+# Local secrets
+Firmware/secrets.h

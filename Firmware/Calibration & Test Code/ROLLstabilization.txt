@@ -16,11 +16,12 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Preferences.h>
+#include "../secrets.h"
 
 // --- WiFi / Network Configuration ---
 // The Rocket will CREATE this network
-const char* ssid = "RocketLink_Telemetry";
-const char* password = "rocketlaunch"; 
+const char* ssid = ROCKET_SSID;
+const char* password = ROCKET_PASSWORD;
 
 // Telemetry Destination
 // Initially set to BROADCAST so any connected computer can hear it immediately.
