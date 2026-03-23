@@ -47,6 +47,7 @@ class TelemetryApp:
 
         self.rocket_ip = None
         self.running = True
+        self.send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         self.build_gui()
         
@@ -207,8 +208,7 @@ class TelemetryApp:
     def _send_udp_command(self, cmd):
         target_ip = self.rocket_ip if self.rocket_ip else LAUNCHER_GATEWAY
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.sendto(cmd.encode('utf-8'), (target_ip, UDP_PORT))
+            self.send_sock.sendto(cmd.encode('utf-8'), (target_ip, UDP_PORT))
         except Exception as e:
             messagebox.showerror("Error", f"Failed to send '{cmd}':\n{e}")
 
@@ -229,23 +229,22 @@ class TelemetryApp:
     def connection_watchdog(self):
         while self.running:
             try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.sendto(b"HELLO", (LAUNCHER_GATEWAY, UDP_PORT))
+                self.send_sock.sendto(b"HELLO", (LAUNCHER_GATEWAY, UDP_PORT))
             except: pass
             time.sleep(2)
 
     def udp_listener(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((UDP_IP, UDP_PORT))
-        while self.running:
-            try:
-                data, addr = sock.recvfrom(BUFFER_SIZE)
-                message = data.decode('utf-8').strip()
-                if self.rocket_ip != addr[0]:
-                    self.rocket_ip = addr[0]
-                    self.root.after(0, lambda: self.status_label.config(text=f"Connected: {self.rocket_ip}", foreground="green"))
-                self.parse_data(message)
-            except: pass
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.bind((UDP_IP, UDP_PORT))
+            while self.running:
+                try:
+                    data, addr = sock.recvfrom(BUFFER_SIZE)
+                    message = data.decode('utf-8').strip()
+                    if self.rocket_ip != addr[0]:
+                        self.rocket_ip = addr[0]
+                        self.root.after(0, lambda: self.status_label.config(text=f"Connected: {self.rocket_ip}", foreground="green"))
+                    self.parse_data(message)
+                except: pass
 
     def parse_data(self, message):
         try:
@@ -402,6 +401,7 @@ class TelemetryApp:
 
     def on_close(self):
         self.running = False
+        self.send_sock.close()
         self.root.destroy()
 
 if __name__ == "__main__":
