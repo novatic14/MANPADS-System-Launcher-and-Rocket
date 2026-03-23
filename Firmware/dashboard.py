@@ -74,8 +74,6 @@ class TelemetryApp:
         self.setup_ui()
         self.setup_plot()
 
-    def update_scale_val(self, val): pass
-
     def trigger_redraw(self, event):
         val = self.scale_slider.get()
         idx = int(round(val))
@@ -96,7 +94,7 @@ class TelemetryApp:
         ttk.Label(scale_frame, text="Zoom:", font=self.f(8)).pack(side=tk.LEFT)
         
         current_idx = self.zoom_levels.index(self.ui_scale) if self.ui_scale in self.zoom_levels else 0
-        self.scale_slider = ttk.Scale(scale_frame, from_=0, to=len(self.zoom_levels)-1, value=current_idx, command=self.update_scale_val)
+        self.scale_slider = ttk.Scale(scale_frame, from_=0, to=len(self.zoom_levels)-1, value=current_idx)
         self.scale_slider.pack(side=tk.LEFT, padx=5)
         self.scale_slider.bind("<ButtonRelease-1>", self.trigger_redraw)
 
