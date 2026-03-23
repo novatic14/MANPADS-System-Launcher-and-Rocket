@@ -32,3 +32,6 @@ Thumbs.db
 # === Fusion 360 recovery ===
 *.f3z.bak
 *.f3z.tmp
+
+# === Secrets ===
+Firmware/Launcher/src/secrets.h

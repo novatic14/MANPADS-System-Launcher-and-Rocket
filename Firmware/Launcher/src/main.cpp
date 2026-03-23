@@ -12,9 +12,10 @@
 #include <QMC5883LCompass.h>
 #include <TinyGPS++.h>
 #include <Adafruit_BMP085.h>
+#include "secrets.h"
 
-const char* ssid = "ROCKET_LAUNCHER";
-const char* password = "launch_secure"; 
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 const int udpPort = 4444;
 WiFiUDP udp;
 IPAddress dashboardIP;
