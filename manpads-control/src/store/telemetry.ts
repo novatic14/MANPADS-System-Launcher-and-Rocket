@@ -6,7 +6,9 @@ import {
   ConnectionStatus,
   FlightPhase,
   EventLogEntry,
-  TelemetryMessage 
+  TelemetryMessage,
+  LauncherState,
+  StateHistoryEntry
 } from '@/lib/types';
 import { DEFAULT_IP, DEFAULT_PORT } from '@/lib/constants';
 import { generateId } from '@/lib/utils';
@@ -27,6 +29,8 @@ export interface RocketState {
   rocketStatus: RocketStatus | null;
   connectionStatus: ConnectionStatus;
   flightPhase: FlightPhase;
+  launcherState: LauncherState;
+  stateHistory: StateHistoryEntry[];
 }
 
 interface TelemetryState {
@@ -74,6 +78,8 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           rocketStatus: null,
           connectionStatus: 'disconnected',
           flightPhase: 'idle',
+          launcherState: 'safe',
+          stateHistory: [],
         }
       }
     }));
@@ -260,6 +266,24 @@ export function initializeTelemetryListener() {
       case 'Debug':
         store.addEvent('debug', payload.message || '');
         break;
+
+      case 'launcher_state':
+      case 'StateChanged': {
+        const fromState = (payload as any).from || 'safe';
+        const toState = (payload as any).to || 'safe';
+        const timestamp_ms = (payload as any).timestamp_ms || Date.now();
+        const stateHistory = [...(store.rocketStates[activeRocketId]?.stateHistory || []), {
+          from: fromState,
+          to: toState,
+          timestamp: new Date(timestamp_ms)
+        }];
+        store.updateRocketState(activeRocketId, {
+          launcherState: toState,
+          stateHistory
+        });
+        store.addEvent('info', `State: ${fromState} → ${toState}`);
+        break;
+      }
     }
   });
 }
