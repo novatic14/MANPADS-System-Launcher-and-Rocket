@@ -6,6 +6,8 @@ use tauri::State;
 use parking_lot::Mutex;
 use std::collections::VecDeque;
 
+const MAX_BUFFER_SIZE: usize = 1000;
+
 pub struct StorageState {
     pub storage: Arc<StorageManager>,
     pub telemetry_buffer: Arc<Mutex<VecDeque<TelemetryRecord>>>,
@@ -16,7 +18,7 @@ impl StorageState {
         let storage = StorageManager::new(data_dir)?;
         Ok(Self { 
             storage: Arc::new(storage), 
-            telemetry_buffer: Arc::new(Mutex::new(VecDeque::new())),
+            telemetry_buffer: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_BUFFER_SIZE))),
         })
     }
 }
@@ -66,9 +68,14 @@ pub fn buffer_telemetry(
     storage: State<StorageState>,
     record: TelemetryRecord,
 ) -> Result<(), AppError> {
-    storage.telemetry_buffer.lock().push_back(record);
+    let mut buffer = storage.telemetry_buffer.lock();
+    if buffer.len() >= MAX_BUFFER_SIZE {
+        buffer.pop_front();
+    }
+    buffer.push_back(record);
     
-    if storage.telemetry_buffer.lock().len() >= 50 {
+    if buffer.len() >= 50 {
+        drop(buffer);
         flush_telemetry_buffer(&storage);
     }
     
@@ -81,4 +88,11 @@ pub fn flush_telemetry(
 ) -> Result<(), AppError> {
     flush_telemetry_buffer(&storage);
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_buffered_telemetry(
+    storage: State<StorageState>,
+) -> Result<Vec<TelemetryRecord>, AppError> {
+    Ok(storage.telemetry_buffer.lock().iter().cloned().collect())
 }
