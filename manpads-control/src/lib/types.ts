@@ -76,3 +76,17 @@ export interface TelemetryRecord {
   longitude: number;
   altitude_m: number;
 }
+
+export type LauncherState = 'safe' | 'calibrating' | 'armed' | 'launching' | 'firing' | 'recovering' | 'error';
+
+export interface StateChangedEvent {
+  from: LauncherState;
+  to: LauncherState;
+  timestamp_ms: number;
+}
+
+export interface StateHistoryEntry {
+  from: LauncherState;
+  to: LauncherState;
+  timestamp: Date;
+}

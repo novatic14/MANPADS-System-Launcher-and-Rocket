@@ -112,3 +112,22 @@ pub struct TelemetryRecord {
     pub longitude: f32,
     pub altitude_m: f32,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LauncherState {
+    Safe,
+    Calibrating,
+    Armed,
+    Launching,
+    Firing,
+    Recovering,
+    Error,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StateChangedEvent {
+    pub from: LauncherState,
+    pub to: LauncherState,
+    pub timestamp_ms: u64,
+}
