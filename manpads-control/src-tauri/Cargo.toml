@@ -22,6 +22,7 @@ parking_lot = "0.12"
 lazy_static = "1.4"
 dirs = "5.0"
 rayon = "1.8"
+tauri-plugin-log = "2.0"
 async-trait = "0.1"
 
 [profile.release]

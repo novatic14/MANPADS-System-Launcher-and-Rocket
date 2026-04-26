@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LauncherState } from '@/lib/types';
 import { useTelemetryStore } from '@/store/telemetry';
 import { Card } from '@/components/ui/Card';
@@ -31,6 +31,8 @@ const stateColors: Record<LauncherState, string> = {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'pass' | 'fail' | null>(null);
+  const [isDebouncing, setIsDebouncing] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   
   const isConnected = connectionStatus === 'connected';
   
@@ -79,6 +81,30 @@ const stateColors: Record<LauncherState, string> = {
     setTestResult(null);
     setCountdown(null);
   };
+
+  const debouncedArm = useCallback(async () => {
+    if (isDebouncing) return;
+    setIsDebouncing(true);
+    await sendCommand('arm');
+    setStep('arm');
+    setTimeout(() => setIsDebouncing(false), 1000);
+  }, [sendCommand, isDebouncing]);
+
+  const debouncedLaunch = useCallback(async () => {
+    if (isDebouncing) return;
+    setIsDebouncing(true);
+    setCountdown(3);
+    
+    for (let i = 3; i > 0; i--) {
+      setCountdown(i);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    setCountdown(null);
+    await sendCommand('launch');
+    setStep('complete');
+    setTimeout(() => setIsDebouncing(false), 1000);
+  }, [sendCommand, isDebouncing]);
   
   return (
     <Card title="Launch Sequence">
@@ -151,7 +177,8 @@ const stateColors: Record<LauncherState, string> = {
               <Button 
                 variant="secondary" 
                 className="w-full"
-                onClick={handleArm}
+                onClick={debouncedArm}
+                disabled={isDebouncing}
               >
                 ARM
               </Button>
@@ -194,7 +221,8 @@ const stateColors: Record<LauncherState, string> = {
                 <Button 
                   variant="danger" 
                   className="w-full"
-                  onClick={handleLaunch}
+                  onClick={debouncedLaunch}
+                  disabled={isDebouncing}
                 >
                   LAUNCH
                 </Button>

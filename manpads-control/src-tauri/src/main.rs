@@ -39,6 +39,14 @@ fn main() {
         .and_then(|path| StorageState::new(path).ok());
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new()
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::Stdout,
+            ))
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::LogDir { file_name: Some("manpads.log".to_string()) },
+            ))
+            .build())
         .plugin(tauri_plugin_shell::init());
     
     if let Some(storage) = storage_state {
