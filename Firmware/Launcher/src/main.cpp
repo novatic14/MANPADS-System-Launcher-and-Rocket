@@ -12,6 +12,7 @@
 #include <QMC5883LCompass.h>
 #include <TinyGPS++.h>
 #include <Adafruit_BMP085.h>
+#include <esp_task_wdt.h>
 
 const char* ssid = "ROCKET_LAUNCHER";
 const char* password = "launch_secure"; 
@@ -150,6 +151,8 @@ void setup() {
     Serial.println("GPS Test Passed.");
     delay(500); 
     successTone();
+    esp_task_wdt_init(5, true);
+    esp_task_wdt_add(NULL);
 }
 
 void sendToDashboard(String msg) {
@@ -396,6 +399,7 @@ void loop() {
         snprintf(envMsg, sizeof(envMsg), "ENV,%.6f,%.6f,%.1f,%d", lat, lon, filteredAlt, gpsState);
         sendToDashboard(String(envMsg));
     }
+    esp_task_wdt_reset();
 }
 
 void updateAndPrintFusion() {
