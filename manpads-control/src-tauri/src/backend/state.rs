@@ -2,17 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use tracing::info;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LauncherState {
-    Safe,
-    Calibrating,
-    Armed,
-    Launching,
-    Firing,
-    Recovering,
-    Error,
-}
+use crate::lib::LauncherState;
 
 #[derive(Debug, Clone, Copy)]
 pub enum LauncherEvent {
