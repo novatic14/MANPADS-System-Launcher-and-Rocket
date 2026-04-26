@@ -40,6 +40,7 @@ pub enum ControlCommand {
     EmergencyStop,
     Arm,
     Disarm,
+    Heartbeat,
 }
 
 #[derive(Error, Debug)]

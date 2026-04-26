@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::UdpSocket;
 use tracing::{debug, info, warn};
 use crate::lib::{TelemetryMessage, ControlCommand};
@@ -11,6 +12,13 @@ lazy_static::lazy_static! {
 
 const MAX_LINE_LENGTH: usize = 512;
 const MAX_PARTS: usize = 20;
+
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
+
+pub async fn send_heartbeat() -> Result<(), String> {
+    send(&ControlCommand::Heartbeat).await
+}
 
 pub async fn connect(ip: &str, port: u16) -> Result<(), String> {
     if ip.is_empty() {
@@ -238,6 +246,11 @@ fn parse_telemetry(line: &str) -> Option<TelemetryMessage> {
                 })
             }
         }
+        "ALIVE" | "PONG" | "READY" => {
+            Some(TelemetryMessage::Debug {
+                message: "heartbeat".to_string(),
+            })
+        }
         _ => None
     }
 }
@@ -255,5 +268,6 @@ fn serialize_command(cmd: &ControlCommand) -> String {
         ControlCommand::EmergencyStop => "ESTOP\n".to_string(),
         ControlCommand::Arm => "ARM\n".to_string(),
         ControlCommand::Disarm => "DISARM\n".to_string(),
+        ControlCommand::Heartbeat => "PING\n".to_string(),
     }
 }

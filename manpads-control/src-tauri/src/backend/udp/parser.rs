@@ -87,6 +87,7 @@ pub fn serialize_command(cmd: &ControlCommand) -> String {
         ControlCommand::EmergencyStop => "ESTOP\n".to_string(),
         ControlCommand::Arm => "ARM\n".to_string(),
         ControlCommand::Disarm => "DISARM\n".to_string(),
+        ControlCommand::Heartbeat => "PING\n".to_string(),
     }
 }
 
