@@ -8,6 +8,7 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <ESP32Servo.h>
+#include <esp_task_wdt.h>
 
 const int RX2_PIN = 16;
 const int TX2_PIN = 17;
@@ -89,6 +90,8 @@ void setup() {
     upServo.write(UP_CENTER);
     downServo.write(DOWN_CENTER);
     calibrateGyro();
+    esp_task_wdt_init(5, true);  // 5 second timeout, panic on trigger
+    esp_task_wdt_add(NULL);
 }
 
 void loop() {
@@ -157,4 +160,5 @@ void loop() {
             cmdBuffer = ""; 
         } else if (c != '\r') { cmdBuffer += c; }
     }
+    esp_task_wdt_reset();  // Feed watchdog
 }

@@ -1,0 +1,33 @@
+[package]
+name = "manpads-control"
+version = "1.0.0"
+description = "MANPADS Control Panel"
+authors = ["MIT"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-shell = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.37", features = ["net", "sync", "time", "rt"] }
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+parking_lot = "0.12"
+lazy_static = "1.4"
+dirs = "5.0"
+rayon = "1.8"
+tauri-plugin-log = "2.0"
+async-trait = "0.1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"
+strip = true

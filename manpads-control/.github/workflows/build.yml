@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [macos-latest]
+
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: manpads-control/package-lock.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Install Rust dependencies
+        working-directory: manpads-control/src-tauri
+        run: cargo fetch
+
+      - name: Install npm dependencies
+        working-directory: manpads-control
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'MANPADS Control v__VERSION__'
+          releaseBody: |
+            ## Changes in this release
+            - See the changelog for details
+          releaseDraft: true
+          prerelease: false
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: manpads-control/package-lock.json
+
+      - name: Install dependencies
+        working-directory: manpads-control
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: manpads-control
+        run: npm run lint
+
+      - name: Check TypeScript
+        working-directory: manpads-control
+        run: npm run typecheck
+
+  test-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Check Rust code
+        working-directory: manpads-control/src-tauri
+        run: cargo check
+
+      - name: Run Rust tests
+        working-directory: manpads-control/src-tauri
+        run: cargo test

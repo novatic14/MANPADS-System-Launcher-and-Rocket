@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --colors-slate5: hsl(210, 87.8%, 16.1%);
+  --colors-slateA12: hsla(210, 87.8%, 16.1%, 0.92);
+  --colors-purple4: hsl(251, 63.2%, 63.2%);
+  --colors-crimsonA9: hsla(345, 85%, 55%, 0.9);
+  --surface-glass: rgba(41, 41, 41, 0.84);
+  --surface-glass-light: rgba(255, 255, 255, 0.84);
+  --border-accent: rgba(62, 207, 142, 0.3);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-text-primary font-sans;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  .light {
+    --colors-slate5: hsl(0, 0%, 96%);
+    --colors-slateA12: hsla(0, 0%, 96%, 0.92);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background-deep;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-prominent rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-border-accent;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-background-deep text-text-primary px-8 py-2 rounded-pill border border-text-primary font-medium text-sm;
+    @apply transition-all duration-200;
+    @apply hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .btn-secondary {
+    @apply bg-background-deep text-text-primary px-8 py-2 rounded-pill border border-border font-medium text-sm opacity-80;
+    @apply transition-all duration-200;
+    @apply hover:opacity-100 hover:border-border-prominent focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .btn-danger {
+    @apply bg-crimson text-white px-8 py-2 rounded-pill border border-crimson font-medium text-sm;
+    @apply transition-all duration-200;
+    @apply hover:bg-crimson-dark focus:outline-none focus:ring-2 focus:ring-crimson focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-text-primary px-3 py-2 rounded-standard border border-transparent;
+    @apply transition-all duration-200;
+    @apply hover:border-border focus:outline-none;
+  }
+
+  .card {
+    @apply bg-background border border-border rounded-card p-6;
+  }
+
+  .card-title {
+    @apply text-2xl font-normal tracking-card text-text-primary;
+  }
+
+  .input-field {
+    @apply bg-background-deep border border-border rounded-standard px-4 py-2 text-text-primary;
+    @apply placeholder:text-text-muted;
+    @apply focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green;
+    @apply transition-colors duration-200;
+  }
+
+  .label-mono {
+    @apply font-mono text-xs uppercase tracking-code text-text-muted;
+  }
+
+  .status-indicator {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .status-connected {
+    @apply bg-brand-green;
+  }
+
+  .status-disconnected {
+    @apply bg-text-muted;
+  }
+
+  .status-warning {
+    @apply bg-yellow-500;
+  }
+
+  .status-critical {
+    @apply bg-crimson;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-green to-brand-link bg-clip-text text-transparent;
+  }
+
+  .border-glow {
+    box-shadow: 0 0 20px rgba(62, 207, 142, 0.3);
+  }
+}
+
+.light {
+  .btn-primary {
+    @apply bg-white text-text-primary-light border border-text-primary-light;
+    @apply focus:ring-brand-green focus:ring-offset-white;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-text-primary-light border border-border-light-default opacity-80;
+    @apply hover:opacity-100 hover:border-border-light-prominent;
+  }
+
+  .card {
+    @apply bg-white border-border-light-default;
+  }
+
+  .card-title {
+    @apply text-text-primary-light;
+  }
+
+  .input-field {
+    @apply bg-white border-border-light-default text-text-primary-light;
+    @apply focus:border-brand-green focus:ring-brand-green;
+  }
+
+  .label-mono {
+    @apply text-text-secondary-light;
+  }
+
+  .status-disconnected {
+    @apply bg-text-secondary-light;
+  }
+}

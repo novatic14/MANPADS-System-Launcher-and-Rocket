@@ -12,7 +12,6 @@ build/
 
 # === Python ===
 __pycache__/
-*.py[cod]
 *$py.class
 *.egg-info/
 dist/
@@ -32,3 +31,21 @@ Thumbs.db
 # === Fusion 360 recovery ===
 *.f3z.bak
 *.f3z.tmp
+
+# === Node ===
+node_modules/
+.pnp
+.pnp.js
+
+# === TypeScript ===
+*.tsbuildinfo
+
+# === Tauri ===
+src-tauri/target/
+src-tauri/src-tauri
+
+# === GSD / Superpowers ===
+docs/superpowers/
+
+# === Hooks ===
+.husky/

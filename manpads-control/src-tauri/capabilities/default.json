@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/capability/2.0",
+  "identifier": "default",
+  "description": "Default capability for MANPADS Control",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "log:default"
+  ]
+}
