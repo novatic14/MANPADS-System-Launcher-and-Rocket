@@ -80,10 +80,12 @@ pub async fn disconnect() {
 }
 
 pub async fn send(cmd: &ControlCommand) -> Result<(), String> {
-    let socket_guard = SOCKET.read().await;
-    let is_connected = socket_guard.is_some();
+    let socket_arc = {
+        let socket_guard = SOCKET.read().await;
+        socket_guard.as_ref().map(|s| s.clone())
+    };
     
-    if !is_connected {
+    if socket_arc.is_none() {
         let data = serialize_command(cmd);
         if !data.is_empty() {
             let mut queue = COMMAND_QUEUE.lock().await;
@@ -96,9 +98,7 @@ pub async fn send(cmd: &ControlCommand) -> Result<(), String> {
         return Ok(());
     }
     
-    let socket = socket_guard.as_ref().ok_or("Not connected")?;
-    drop(socket_guard);
-    
+    let socket = socket_arc.unwrap();
     let target = TARGET.read().await;
     let target = target.ok_or("No target address")?;
 
@@ -109,7 +109,7 @@ pub async fn send(cmd: &ControlCommand) -> Result<(), String> {
     }
     
     socket
-        .send_to(data.as_bytes(), *target)
+        .send_to(data.as_bytes(), target)
         .await
         .map_err(|e| format!("Send failed: {}", e))?;
 
@@ -140,7 +140,7 @@ pub async fn flush_command_queue() -> Result<(), String> {
     
     while let Some(data) = queue.pop_front() {
         socket
-            .send_to(data.as_bytes(), *target)
+            .send_to(data.as_bytes(), target)
             .await
             .map_err(|e| format!("Queue flush failed: {}", e))?;
         debug!("Flushed queued command");

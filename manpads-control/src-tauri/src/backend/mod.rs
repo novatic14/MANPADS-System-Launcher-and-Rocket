@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod hal;
 pub mod logging;
 pub mod state;
 pub mod storage;
