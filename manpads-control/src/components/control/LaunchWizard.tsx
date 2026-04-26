@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { LauncherState } from '@/lib/types';
 import { useTelemetryStore } from '@/store/telemetry';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,21 @@ type WizardStep = 'idle' | 'test' | 'arm' | 'launch' | 'complete';
 
 export function LaunchWizard() {
   const { sendCommand, connectionStatus, flightPhase } = useTelemetryStore();
+
+const launcherState = useTelemetryStore((s) => {
+    const activeId = s.activeRocketId;
+    return activeId ? (s.rocketStates[activeId]?.launcherState || 'safe') : 'safe';
+});
+
+const stateColors: Record<LauncherState, string> = {
+    safe: 'bg-gray-500',
+    calibrating: 'bg-yellow-500',
+    armed: 'bg-green-500',
+    launching: 'bg-orange-500',
+    firing: 'bg-red-500 animate-pulse',
+    recovering: 'bg-blue-500',
+    error: 'bg-red-700',
+};
   
   const [step, setStep] = useState<WizardStep>('idle');
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -67,6 +83,13 @@ export function LaunchWizard() {
   return (
     <Card title="Launch Sequence">
       <div className="space-y-6">
+        <div className="mb-4 p-2 rounded bg-surface border border-border">
+            <span className="text-xs text-text-muted">Launcher State: </span>
+            <span className={`inline-block px-2 py-0.5 rounded text-xs text-white ${stateColors[launcherState]}`}>
+                {launcherState.toUpperCase()}
+            </span>
+        </div>
+        
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn(
