@@ -33,10 +33,11 @@ class TelemetryApp:
         self.output_data = deque()
         
         self.current_values = {
-            "Time": 0, "Roll": 0.0, "Rate": 0.0, "Output": 0.0, 
+            "Time": 0, "Roll": 0.0, "Rate": 0.0, "Output": 0.0,
             "State": "DISCONNECTED", "ActiveKp": 0.0, "ActiveKd": 0.0,
             "Skew": 0.0,
-            "Lat": 0.0, "Lon": 0.0, "Alt": 0.0, "GPS_State": 0
+            "Lat": 0.0, "Lon": 0.0, "Alt": 0.0, "GPS_State": 0,
+            "GuidDist": 0.0, "GuidBearing": 0.0, "GuidElev": 0.0,
         }
         
         self.mission_events = [] 
@@ -44,6 +45,10 @@ class TelemetryApp:
 
         self.kp_var = tk.StringVar(value="0.5")
         self.kd_var = tk.StringVar(value="0.2")
+
+        self.target_lat_var = tk.StringVar(value="0.000000")
+        self.target_lon_var = tk.StringVar(value="0.000000")
+        self.target_alt_var = tk.StringVar(value="0.0")
 
         self.rocket_ip = None
         self.running = True
@@ -145,6 +150,35 @@ class TelemetryApp:
         self.lbl_active_pid = tk.Label(display_container, text="Kp: --.---  |  Kd: --.---", font=self.fm(13), fg="#004488", bg="white")
         self.lbl_active_pid.pack(side=tk.LEFT)
 
+        # --- GPS TARGETING FRAME ---
+        targeting_frame = ttk.LabelFrame(self.root, text="GPS Targeting", padding=self.s(10))
+        targeting_frame.pack(side=tk.TOP, fill=tk.X, padx=self.s(10), pady=self.s(5))
+
+        entry_frame = ttk.Frame(targeting_frame)
+        entry_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, self.s(20)))
+
+        ttk.Label(entry_frame, text="Target Lat:", font=self.f(10)).grid(row=0, column=0, sticky="e", padx=(0, self.s(5)), pady=self.s(2))
+        ttk.Entry(entry_frame, textvariable=self.target_lat_var, width=int(12 * self.ui_scale), font=self.f(10, "bold")).grid(row=0, column=1, sticky="w", pady=self.s(2))
+        ttk.Label(entry_frame, text="Target Lon:", font=self.f(10)).grid(row=1, column=0, sticky="e", padx=(0, self.s(5)), pady=self.s(2))
+        ttk.Entry(entry_frame, textvariable=self.target_lon_var, width=int(12 * self.ui_scale), font=self.f(10, "bold")).grid(row=1, column=1, sticky="w", pady=self.s(2))
+        ttk.Label(entry_frame, text="Target Alt (m):", font=self.f(10)).grid(row=2, column=0, sticky="e", padx=(0, self.s(5)), pady=self.s(2))
+        ttk.Entry(entry_frame, textvariable=self.target_alt_var, width=int(12 * self.ui_scale), font=self.f(10, "bold")).grid(row=2, column=1, sticky="w", pady=self.s(2))
+        ttk.Button(entry_frame, text="SET TARGET", command=self.send_target_command, width=int(14 * self.ui_scale)).grid(row=0, column=2, rowspan=3, sticky="ns", padx=self.s(10), pady=self.s(2))
+
+        ttk.Separator(targeting_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=self.s(15))
+
+        guidance_frame = ttk.Frame(targeting_frame)
+        guidance_frame.pack(side=tk.LEFT, fill=tk.Y, padx=self.s(10))
+        ttk.Label(guidance_frame, text="COMPUTED GUIDANCE:", font=self.f(8, "bold"), foreground="gray").pack(side=tk.TOP, anchor="w")
+        guidance_display = tk.Frame(guidance_frame, bg="black", bd=1, relief=tk.SOLID, padx=self.s(10), pady=self.s(5))
+        guidance_display.pack(side=tk.TOP, anchor="w", pady=(self.s(5), 0))
+        self.lbl_bearing = tk.Label(guidance_display, text="BRG: ---°",  font=self.fm(13), fg="#00FF88", bg="black")
+        self.lbl_bearing.pack(side=tk.LEFT, padx=self.s(8))
+        self.lbl_elev    = tk.Label(guidance_display, text="ELEV: ---°", font=self.fm(13), fg="#00FF88", bg="black")
+        self.lbl_elev.pack(side=tk.LEFT, padx=self.s(8))
+        self.lbl_dist    = tk.Label(guidance_display, text="DIST: --- m", font=self.fm(13), fg="#00FF88", bg="black")
+        self.lbl_dist.pack(side=tk.LEFT, padx=self.s(8))
+
         # --- ENVIRONMENT & LOCATION FRAME ---
         env_frame = ttk.LabelFrame(self.root, text="Environment & Location", padding=self.s(10))
         env_frame.pack(side=tk.TOP, fill=tk.X, padx=self.s(10), pady=self.s(5))
@@ -226,6 +260,25 @@ class TelemetryApp:
         except ValueError:
             messagebox.showerror("Error", "Kp and Kd must be valid numbers.")
 
+    def send_target_command(self):
+        try:
+            lat = float(self.target_lat_var.get())
+            lon = float(self.target_lon_var.get())
+            alt = float(self.target_alt_var.get())
+        except ValueError:
+            messagebox.showerror("Error", "Lat, Lon, and Alt must be valid numbers.")
+            return
+        gps_state = self.current_values.get("GPS_State", 0)
+        if gps_state < 2:
+            if not messagebox.askyesno(
+                "GPS Warning",
+                "Launcher GPS does not have a fix yet.\n"
+                "Guidance cannot be computed without a valid launcher position.\n\n"
+                "Set target anyway?"
+            ):
+                return
+        self._send_udp_command(f"TARGET,{lat:.6f},{lon:.6f},{alt:.1f}")
+
     def connection_watchdog(self):
         while self.running:
             try:
@@ -266,8 +319,15 @@ class TelemetryApp:
                 if len(parts) >= 5: # Safely get the new GPS state variable
                     self.current_values["GPS_State"] = int(parts[4])
 
+            elif message.startswith("GUIDANCE,"):
+                parts = message.split(',')
+                if len(parts) >= 4:
+                    self.current_values["GuidDist"]    = float(parts[1])
+                    self.current_values["GuidBearing"] = float(parts[2])
+                    self.current_values["GuidElev"]    = float(parts[3])
+
             elif message.startswith("T,") or message.startswith("[FUSION]"):
-                if message.startswith("[FUSION]"): return 
+                if message.startswith("[FUSION]"): return
                 parts = message.split(',')
                 if len(parts) >= 5:
                     t, r, rt, o = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
@@ -316,6 +376,17 @@ class TelemetryApp:
                 self.gps_canvas.itemconfig(self.gps_dot, fill="green", outline="green")
                 self.lbl_gps_text.config(text="FIX ACQUIRED", foreground="green")
         
+        if hasattr(self, 'lbl_bearing'):
+            dist = vals.get("GuidDist", 0.0)
+            if dist > 0.0:
+                self.lbl_bearing.config(text=f"BRG: {vals['GuidBearing']:.1f}°")
+                self.lbl_elev.config(   text=f"ELEV: {vals['GuidElev']:.1f}°")
+                self.lbl_dist.config(   text=f"DIST: {dist:.0f} m")
+            else:
+                self.lbl_bearing.config(text="BRG: ---°")
+                self.lbl_elev.config(   text="ELEV: ---°")
+                self.lbl_dist.config(   text="DIST: --- m")
+
         state = vals["State"]
         self.lbl_state_text.config(text=state)
         self.lbl_active_pid.config(text=f"Kp: {vals['ActiveKp']:.3f}  |  Kd: {vals['ActiveKd']:.3f}")
@@ -347,7 +418,7 @@ class TelemetryApp:
     def reset_dashboard(self):
         self.time_data.clear(); self.roll_data.clear(); self.rate_data.clear(); self.output_data.clear()
         self.mission_events.clear()
-        self.current_values = {"Time": 0, "Roll": 0.0, "Rate": 0.0, "Output": 0.0, "State": "DISCONNECTED", "ActiveKp": 0.0, "ActiveKd": 0.0, "Skew": 0.0, "Lat": 0.0, "Lon": 0.0, "Alt": 0.0, "GPS_State": 0}
+        self.current_values = {"Time": 0, "Roll": 0.0, "Rate": 0.0, "Output": 0.0, "State": "DISCONNECTED", "ActiveKp": 0.0, "ActiveKd": 0.0, "Skew": 0.0, "Lat": 0.0, "Lon": 0.0, "Alt": 0.0, "GPS_State": 0, "GuidDist": 0.0, "GuidBearing": 0.0, "GuidElev": 0.0}
         self.last_state = "DISCONNECTED"
         self.update_stats()
 
