@@ -1,6 +1,6 @@
 /*
  * LAUNCHER ESP32 CODE (WiFi AP + Comm Relay + Fusion + GPS + Barometer)
- * V4 - Fully Non-Blocking & GPS Status Tracking
+ * V5 - GPS Targeting: Haversine guidance computation + AIM relay
  */
 
 #include <Arduino.h>
@@ -61,8 +61,47 @@ const float MAG_SCALE_Y = 0.971;
 const float MAG_SCALE_Z = 1.044;
 
 bool udpLaunchTriggered = false;
-bool rocketReady = false; 
-bool rocketIgnited = false; 
+bool rocketReady = false;
+bool rocketIgnited = false;
+
+// --- GPS Targeting ---
+float target_lat           = 0.0;
+float target_lon           = 0.0;
+float target_alt_m         = 0.0;
+bool  target_set           = false;
+float guidance_dist_m      = 0.0;
+float guidance_bearing_deg = 0.0;
+float guidance_elev_deg    = 0.0;
+
+static const float EARTH_R = 6371000.0;
+
+float haversineDistance(float lat1, float lon1, float lat2, float lon2) {
+    float dLat = (lat2 - lat1) * PI / 180.0;
+    float dLon = (lon2 - lon1) * PI / 180.0;
+    float a = sin(dLat * 0.5) * sin(dLat * 0.5) +
+              cos(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) *
+              sin(dLon * 0.5) * sin(dLon * 0.5);
+    return EARTH_R * 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+}
+
+float haversineBearing(float lat1, float lon1, float lat2, float lon2) {
+    float dLon = (lon2 - lon1) * PI / 180.0;
+    float y = sin(dLon) * cos(lat2 * PI / 180.0);
+    float x = cos(lat1 * PI / 180.0) * sin(lat2 * PI / 180.0) -
+              sin(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) * cos(dLon);
+    float b = atan2(y, x) * 180.0 / PI;
+    return b < 0.0 ? b + 360.0 : b;
+}
+
+void computeGuidance() {
+    if (!target_set || !gps.location.isValid() || gps.location.lat() == 0.0) return;
+    float llat = gps.location.lat(), llon = gps.location.lng();
+    guidance_dist_m      = haversineDistance(llat, llon, target_lat, target_lon);
+    guidance_bearing_deg = haversineBearing(llat, llon, target_lat, target_lon);
+    float alt_diff       = target_alt_m - filteredAlt;
+    guidance_elev_deg    = (guidance_dist_m < 1.0) ? 90.0
+                           : atan2(alt_diff, guidance_dist_m) * 180.0 / PI;
+}
 
 void buzzerOn() { digitalWrite(BUZZER_PIN, LOW); }
 void buzzerOff() { digitalWrite(BUZZER_PIN, HIGH); }
@@ -229,7 +268,20 @@ void processUDP() {
         } else if (msg == "calibrate") {
             Serial2.println("CALIBRATE");
         } else if (msg.startsWith("PID,")) {
-            Serial2.println(msg); 
+            Serial2.println(msg);
+        } else if (msg.startsWith("TARGET,")) {
+            int c1 = msg.indexOf(','), c2 = msg.indexOf(',', c1 + 1), c3 = msg.indexOf(',', c2 + 1);
+            if (c1 > 0 && c2 > 0 && c3 > 0) {
+                target_lat   = msg.substring(c1 + 1, c2).toFloat();
+                target_lon   = msg.substring(c2 + 1, c3).toFloat();
+                target_alt_m = msg.substring(c3 + 1).toFloat();
+                target_set   = true;
+                computeGuidance();
+                char buf[96];
+                snprintf(buf, sizeof(buf), "GUIDANCE,%.1f,%.1f,%.1f",
+                         guidance_dist_m, guidance_bearing_deg, guidance_elev_deg);
+                sendToDashboard(String(buf));
+            }
         }
     }
 }
@@ -333,7 +385,13 @@ void loop() {
             if (triggered) {
                 currentState = IGNITING;
                 Serial2.println("CALIBRATE");
-                delay(20);                    
+                delay(20);
+                if (target_set) {
+                    char aimCmd[32];
+                    snprintf(aimCmd, sizeof(aimCmd), "AIM,%.1f", guidance_elev_deg);
+                    Serial2.println(aimCmd);
+                    delay(20);
+                }
                 Serial2.println("IGNITE");
                 Serial.println("IGNITION COMMAND SENT");
             }
@@ -395,6 +453,14 @@ void loop() {
         char envMsg[128];
         snprintf(envMsg, sizeof(envMsg), "ENV,%.6f,%.6f,%.1f,%d", lat, lon, filteredAlt, gpsState);
         sendToDashboard(String(envMsg));
+
+        if (target_set) {
+            computeGuidance();
+            char guidMsg[96];
+            snprintf(guidMsg, sizeof(guidMsg), "GUIDANCE,%.1f,%.1f,%.1f",
+                     guidance_dist_m, guidance_bearing_deg, guidance_elev_deg);
+            sendToDashboard(String(guidMsg));
+        }
     }
 }
 

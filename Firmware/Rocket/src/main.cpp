@@ -1,6 +1,6 @@
 /*
  * ROCKET ESP32 CODE (Flight Computer + Stabilization)
- * V4 - Final stable build with Physical Skew Telemetry
+ * V5 - GPS Targeting: pitch PD loop + AIM command
  */
 
 #include <Arduino.h>
@@ -40,28 +40,38 @@ float roll = 0;
 float gyroX_offset = 0;
 float physical_skew_angle = 0.0;
 
+// --- Pitch guidance ---
+float pitch_setpoint_deg = 0.0;
+float pitch_angle        = 0.0;
+float gyroY_offset       = 0.0;
+float Kp_pitch           = 0.3;
+float Kd_pitch           = 0.15;
+
 unsigned long last_time;
 unsigned long lastTelemetrySent = 0;
 unsigned long lastReadySent = 0;
 unsigned long igniteStartTime = 0;
 
 void calibrateGyro() {
-    float sumGyroX = 0, sumAccY = 0, sumAccZ = 0;
+    float sumGyroX = 0, sumGyroY = 0, sumAccY = 0, sumAccZ = 0;
     int samples = 200;
     for (int i = 0; i < samples; i++) {
         sensors_event_t a, g, temp;
         mpu.getEvent(&a, &g, &temp);
         sumGyroX += g.gyro.x;
+        sumGyroY += g.gyro.y;
         sumAccY += a.acceleration.y;
         sumAccZ += a.acceleration.z;
         delay(5);
     }
     gyroX_offset = sumGyroX / samples;
+    gyroY_offset = sumGyroY / samples;
     float avgY = sumAccY / samples;
     float avgZ = sumAccZ / samples;
-    physical_skew_angle = atan2(avgY, avgZ) * 180.0 / PI; 
-    roll = 0.0; 
-    last_time = millis(); 
+    physical_skew_angle = atan2(avgY, avgZ) * 180.0 / PI;
+    roll = 0.0;
+    pitch_angle = 0.0;
+    last_time = millis();
 }
 
 void setup() {
@@ -107,17 +117,28 @@ void loop() {
     float output = (Kp * roll) + (Kd * rate_deg_s);
     int servo_offset = constrain((int)output, -MAX_DEFLECTION, MAX_DEFLECTION);
 
+    // Pitch PD loop — integrates gyro.y to track pitch_setpoint_deg
+    float raw_pitch_rate_rad = g.gyro.y - gyroY_offset;
+    float pitch_rate_deg_s   = raw_pitch_rate_rad * 180.0 / PI;
+    pitch_angle             += pitch_rate_deg_s * dt;
+    float pitch_error  = pitch_setpoint_deg - pitch_angle;
+    float pitch_output = (Kp_pitch * pitch_error) + (Kd_pitch * pitch_rate_deg_s);
+    int   pitch_offset = constrain((int)pitch_output, -MAX_DEFLECTION, MAX_DEFLECTION);
+
     if (sysState == "FLIGHT") {
-        leftServo.write(LEFT_CENTER + servo_offset);
+        // Roll: symmetric across all four canards
+        // Pitch: differential on the vertical (up/down) pair only
+        leftServo.write(LEFT_CENTER  + servo_offset);
         rightServo.write(RIGHT_CENTER + servo_offset);
-        upServo.write(UP_CENTER + servo_offset);
-        downServo.write(DOWN_CENTER + servo_offset);
+        upServo.write(  constrain(UP_CENTER   + servo_offset + pitch_offset, UP_CENTER   - MAX_DEFLECTION, UP_CENTER   + MAX_DEFLECTION));
+        downServo.write(constrain(DOWN_CENTER + servo_offset - pitch_offset, DOWN_CENTER - MAX_DEFLECTION, DOWN_CENTER + MAX_DEFLECTION));
     } else {
         leftServo.write(LEFT_CENTER);
         rightServo.write(RIGHT_CENTER);
         upServo.write(UP_CENTER);
         downServo.write(DOWN_CENTER);
-        servo_offset = 0; 
+        servo_offset = 0;
+        pitch_offset = 0;
     }
 
     if (sysState == "IGNITING" && (current_time - igniteStartTime > 2500)) {
@@ -127,13 +148,14 @@ void loop() {
     }
 
     if (current_time - lastTelemetrySent >= 50) {
-        // Telemetry payload including Skew Angle
-        String payload = "DATA," + String(a.acceleration.x, 2) + "," + 
+        String payload = "DATA," + String(a.acceleration.x, 2) + "," +
                          String(a.acceleration.y, 2) + "," + String(a.acceleration.z, 2) + "," +
-                         String(roll, 2) + "," + String(rate_deg_s, 2) + "," + 
-                         String(servo_offset) + "," + sysState + "," + 
-                         String(Kp, 2) + "," + String(Kd, 2) + "," + 
-                         String(physical_skew_angle, 2);
+                         String(roll, 2) + "," + String(rate_deg_s, 2) + "," +
+                         String(servo_offset) + "," + sysState + "," +
+                         String(Kp, 2) + "," + String(Kd, 2) + "," +
+                         String(physical_skew_angle, 2) + "," +
+                         String(pitch_angle, 2) + "," + String(pitch_setpoint_deg, 2) + "," +
+                         String(pitch_offset);
         Serial2.println(payload);
         lastTelemetrySent = current_time;
     }
@@ -153,6 +175,10 @@ void loop() {
             else if (cmdBuffer.startsWith("PID,")) {
                 int c1 = cmdBuffer.indexOf(','), c2 = cmdBuffer.indexOf(',', c1 + 1);
                 if (c1 > 0 && c2 > 0) { Kp = cmdBuffer.substring(c1 + 1, c2).toFloat(); Kd = cmdBuffer.substring(c2 + 1).toFloat(); }
+            }
+            else if (cmdBuffer.startsWith("AIM,")) {
+                int c1 = cmdBuffer.indexOf(',');
+                if (c1 > 0) pitch_setpoint_deg = cmdBuffer.substring(c1 + 1).toFloat();
             }
             cmdBuffer = ""; 
         } else if (c != '\r') { cmdBuffer += c; }
